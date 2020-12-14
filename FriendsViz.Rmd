@@ -1,0 +1,167 @@
+---
+title: "FRIENDS Viz v2"
+author: "Erika Ronquillo"
+date: "12/13/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+options(scipen = 999, warn=-1)
+
+library(ggplot2)
+library(dplyr)
+library(tidytext)
+library(ggthemes)
+library(ggrepel)
+library(tidyverse)
+```
+
+```{r}
+friends <- read.csv(file = 'friends.csv', stringsAsFactors = F)
+friends_info <- read.csv(file = 'friends_info.csv')
+
+main <- c("Rachel Green", "Ross Geller", "Monica Geller", "Joey Tribbiani", "Phoebe Buffay", "Chandler Bing")
+```
+
+
+```{r}
+mainlines <- friends%>%
+  filter(speaker %in% main) %>%
+  count(speaker, sort = TRUE)
+
+mainlines %>%
+  ggplot(., aes(reorder(speaker, n), n))+
+  coord_flip()+
+  geom_bar(stat = "identity", colour = "black", fill = rainbow(n=6, alpha = 0.9, start = 0.52, end = 0.56))+
+  labs(title = "Main Characters", subtitle = "Who had the most lines?", x = "", y = "# of Lines")+
+  geom_text(aes(label = scales::comma(n,2), y= n), position = position_stack(vjust = 0.5), size = 4)+
+  theme_economist() +
+  theme(axis.title = element_text(size = 8), axis.text = element_text(size = 8, face = "bold"), axis.text.y = element_text(size = 10), axis.line = element_line(size = 0.4, colour = "grey10"), plot.caption = element_text(color = "gray25", face = "italic", size = 14), axis.text.x = element_text(size=10,))
+```
+
+```{r}
+guestlines <- friends%>%
+  filter(!speaker %in% main,!speaker %in% c("NA","#ALL#","Scene Directions"),!is.na(speaker)) %>%
+  count(speaker, sort = TRUE)
+
+guestlines%>%
+  slice(1:10) %>%
+  ggplot(., aes(reorder(speaker, n), n))+
+  coord_flip()+
+  geom_bar(stat = "identity", colour = "black", fill = rainbow(n=10, alpha = 0.9, start = 0.06, end = 0.14))+
+  labs(title = "Guest Stars", subtitle = "Who had the most lines?", x = "", y = "# of Lines")+
+  geom_text(aes(label = scales::comma(n,2), y= n), position = position_stack(vjust = 0.5), size = 4)+
+  theme_economist() +
+  theme(axis.title = element_text(size = 8), axis.text = element_text(size = 8, face = "bold"), axis.text.y = element_text(size = 10), axis.line = element_line(size = 0.4, colour = "grey10"), plot.caption = element_text(color = "gray25", face = "italic", size = 14), axis.text.x = element_text(size=10,))
+```
+
+```{r}
+avgViews <- mean(friends_info$us_views_millions)
+
+friends_info %>%
+  filter(season %in% c(1,2,3,4,5,6,7,8,9,10)) %>%
+  ggplot(aes(x = as.Date(air_date), y = us_views_millions, group = factor(season), color=factor(season))) +
+  geom_line(size=0.8) +
+  labs(title = "US Viewers Over Time", subtitle = "How many views did the show have?", x = "Air Date", y = "# of Views (m)") +
+  theme_economist() +
+  guides(col = guide_legend(nrow = 1, title = "Season", title.theme = element_text(size = 8))) +
+  theme(axis.text = element_text(size = 8, face = "bold"), axis.line.y = element_line(size = 0.4, colour = "black"),panel.grid.major.y = element_blank(), axis.title = element_text(size = 8), legend.text = element_text(size = 8),legend.position = "bottom")+
+  geom_hline(yintercept = avgViews, linetype = "longdash", size = 0.4) +
+  annotate(geom = "curve", x = as.Date("1996-09-08"), y = 52, xend = as.Date("1996-01-28"), yend = 52, curvature = .3, arrow = arrow(length = unit(2, "mm"))) +
+  annotate(geom = "text", x = as.Date("1996-09-08"), y = 52, label = "The One After the Superbowl", hjust = "left") +
+  annotate(geom = "curve", x = as.Date("1994-04-01"), y = 33.15, xend = as.Date("1994-04-01"), yend = 25.5, curvature = .3, arrow = arrow(length = unit(2, "mm"))) +
+  annotate(geom = "curve", x = as.Date("2003-12-06"), y = 50, xend = as.Date("2004-04-18"), yend = 52, curvature = .3, arrow = arrow(length = unit(2, "mm"))) +
+  geom_label(x = as.Date("1994-04-01"), y = 35, label = "25m avg", hjust = "left",fontface="italic", colour = "black")+
+  annotate(geom = "text", x = as.Date("2003-12-06"), y = 50, label = "The Last One", hjust = "right")
+```
+
+```{r}
+ggplot(friends_info, aes(x = imdb_rating, y = us_views_millions, group=factor(season), colour=factor(season))) +
+  geom_point(position = position_jitter(),colour = "black", shape = 21, size = 3.5, aes(fill = factor(season))) +
+  labs(title = "Ratings vs. Views", subtitle = "Do higher rated episodes have higher views?", x = "IMDB Rating", y = "# of Views (m)") +
+  theme_economist() +
+  theme(axis.text = element_text(size = 8, face = "bold"), axis.line.y = element_line(size = 0.4, colour = "black"),panel.grid.major.y = element_blank(), axis.title = element_text(size = 8), legend.text = element_text(size = 8),legend.position = "bottom") +
+  guides(fill = guide_legend(nrow = 1, title = "Season", title.theme = element_text(size = 8))) +
+  annotate(geom = "text", x = 9.5, y = 49, label = "The Last One", hjust = "right") +
+  annotate(geom = "curve", x = 9.52, y = 49, xend = 9.7, yend = 51.94, curvature = .3, arrow = arrow(length = unit(2, "mm"))) +
+  annotate(geom = "text", x = 9.5, y = 41, label = "The One Where Everybody Finds Out", hjust = "right") +
+  annotate(geom = "curve", x = 9.52, y = 41, xend = 9.69, yend = 28.22, curvature = -0.3, arrow = arrow(length = unit(2, "mm")))
+```
+
+
+```{r}
+friendsLines <- data.frame(friends) %>%
+  filter(speaker %in% main)
+
+# Sentiment Analysis
+tokens <- data_frame(friendsLines)  %>%
+  unnest_tokens(text, output=word, format="text", token="words", drop=FALSE, to_lower=TRUE)
+
+tokens %>%
+  inner_join(get_sentiments("bing")) %>% # pull out only sentiment words
+  group_by(season, speaker,  sentiment) %>%
+  count(sentiment) %>% # count the # of positive & negative words
+  spread(sentiment, n, fill = 0) %>% # make data wide rather than narrow
+  mutate(sentiment = positive - negative) # # of positive words - # of negative words
+
+GetSentiment <- function(file){
+  tokens <- data_frame(friendsLines) %>%
+  filter(speaker %in% main) %>%
+  unnest_tokens(text, output=word, format="text", token="words", drop=FALSE, to_lower=TRUE)
+  
+  # get the sentiment from the first text: 
+  sentiment <- tokens %>%
+    inner_join(get_sentiments("bing")) %>% # pull out only sentiment words
+    group_by(season, speaker, sentiment) %>%
+    count(sentiment) %>% # count the # of positive & negative words
+    spread(sentiment, n, fill = 0) %>% # make data wide rather than narrow
+    mutate(sentiment = positive - negative) # # of positive words - # of negative words
+
+  return(sentiment)
+}
+
+GetSentiment()
+
+sentiment <- data_frame()
+sentiments <- rbind(sentiment, GetSentiment())
+```
+
+```{r}
+ggplot(sentiments, aes(x = speaker, y = sentiment, color = speaker)) + 
+  geom_boxplot(colour = "black", fill=rainbow(n=6, alpha = 0.9, start = 0.42, end = 0.46)) +
+  labs(title = "Character Sentiments", subtitle = "Who had the most positive sentiments?", y = "# of Sentiments") +
+  theme_economist() +
+  theme(axis.text = element_text(size = 8), axis.line.y = element_line(size = 0.4, colour = "black"),panel.grid.major.y = element_blank(), axis.title = element_text(size = 8), legend.position = "none", axis.title.x=element_blank())
+```
+
+
+```{r}
+linesperscene <- friends %>% 
+  filter(speaker %in% main) %>%
+  group_by(season, episode, scene, speaker) %>%
+  count(speaker)
+
+scenesperCharacter <- linesperscene %>%
+  group_by(speaker, season, episode, scene) %>%
+  count(scene, name = "sceneCount")
+
+sceneSum <- scenesperCharacter %>%
+  group_by(speaker) %>%
+  summarise(sceneCount = sum(sceneCount))
+
+plot_all <- left_join(sceneSum, mainlines, by="speaker") %>%
+  arrange(desc(n))
+plot_all
+```
+
+```{r}
+rownames(plot_all) <- c("Rachel Green", "Ross Geller", "Chandler Bing", "Monica Geller", "Joey Tribbiani", "Phoebe Buffay")
+
+ggplot(plot_all, aes(x=sceneCount, y=n)) +
+  geom_point(colour = "black", shape = 21, size = 3.5, aes(fill = factor(speaker)))+
+  geom_text_repel(aes(label = rownames(plot_all)), size = 3.5)+
+  labs(title = "Scene vs. Line Counts", subtitle = "Does having more scenes lead to more lines?", x = "# of Scenes", y = "# of Lines") +
+  theme_economist() +
+  theme(axis.text = element_text(size = 8), axis.line.y = element_line(size = 0.4, colour = "black"),panel.grid.major.y = element_blank(), axis.title = element_text(size = 8), legend.position = "none")
+```
+
